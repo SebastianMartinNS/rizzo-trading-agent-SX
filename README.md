@@ -1,5 +1,5 @@
 # Trading Agent
-![](/img.jpg)
+![](/img.png)
 
 Fork del [Trading Agent](https://github.com/RizzoAI-Academy/trading-agent) sviluppato da [Rizzo AI Academy](https://www.youtube.com/@RizzoAI-Academy), progetto ispirato a [Alpha Arena](https://nof1.ai/).
 
