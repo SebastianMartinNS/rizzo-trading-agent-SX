@@ -31,6 +31,25 @@ class CryptoTechnicalAnalysisHL:
         # Cache per i metadati globali (Funding, OI, Mark Price)
         self._market_state_cache = None
         self._market_state_timestamp = 0
+        self._available_symbols = None
+
+    def get_available_symbols(self) -> List[str]:
+        """Restituisce lista di simboli effettivamente disponibili su Hyperliquid"""
+        if self._available_symbols is not None:
+            return self._available_symbols
+        
+        try:
+            meta = self.info.meta()
+            self._available_symbols = [asset["name"] for asset in meta["universe"]]
+            return self._available_symbols
+        except Exception as e:
+            print(f"Errore recupero simboli disponibili: {e}")
+            return []
+    
+    def is_symbol_available(self, coin: str) -> bool:
+        """Verifica se un simbolo è disponibile su Hyperliquid"""
+        available = self.get_available_symbols()
+        return coin in available
 
     # ==============================
     #       HELPER MARKET STATE
@@ -53,6 +72,9 @@ class CryptoTechnicalAnalysisHL:
         """
         Estrae dati reali (Funding, OI, Mark Price) per il coin specificato.
         """
+        if not self.is_symbol_available(coin):
+            return {"funding": 0.0, "oi": 0.0, "mark_px": 0.0}
+        
         state = self._get_global_state()
         if not state:
             return {"funding": 0.0, "oi": 0.0, "mark_px": 0.0}
@@ -109,6 +131,9 @@ class CryptoTechnicalAnalysisHL:
         """
         Recupera i dati OHLCV da Hyperliquid tramite Info.candles_snapshot.
         """
+        if not self.is_symbol_available(coin):
+            raise ValueError(f"Symbol {coin} not available on Hyperliquid")
+        
         if interval not in INTERVAL_TO_MS:
             raise ValueError(f"Interval '{interval}' non supportato in INTERVAL_TO_MS")
 
@@ -353,6 +378,12 @@ def analyze_multiple_tickers(tickers: List[str], testnet: bool = True) -> Tuple[
     data = None
     for ticker in tickers:
         try:
+            coin = ticker.split('-')[0].upper()
+            if not analyzer.is_symbol_available(coin):
+                print(f"[SKIP] {ticker} non disponibile su Hyperliquid")
+                full_output += f"\n{ticker}: Symbol not available on Hyperliquid\n"
+                continue
+            
             data = analyzer.get_complete_analysis(ticker)
             datas.append(data)
             full_output += analyzer.format_output(data)

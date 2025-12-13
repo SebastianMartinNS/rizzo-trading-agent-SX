@@ -1,1 +1,20 @@
-[]
+[
+    {
+        "symbol": "SOL",
+        "side": "long",
+        "size": 8.17,
+        "entry_price": 132.91,
+        "mark_price": 132.305,
+        "pnl_usd": -4.9428,
+        "leverage": "8x (isolated)"
+    },
+    {
+        "symbol": "OP",
+        "side": "long",
+        "size": 3475.6,
+        "entry_price": 0.31438,
+        "mark_price": 0.31373,
+        "pnl_usd": -2.2591,
+        "leverage": "8x (isolated)"
+    }
+]

@@ -4,17 +4,22 @@ import os
 import json 
 
 load_dotenv()
-# read api key
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-client = OpenAI(api_key=OPENAI_API_KEY)
+# OpenRouter configuration
+OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')
+if not OPENROUTER_API_KEY:
+    raise RuntimeError("OPENROUTER_API_KEY missing in .env")
+client = OpenAI(
+    api_key=OPENROUTER_API_KEY,
+    base_url="https://openrouter.ai/api/v1"
+)
 
 def previsione_trading_agent(prompt):
-    response = client.responses.create(
-    model="gpt-5.1",
-    input=prompt,
-    text={
-        "format": {
+    response = client.chat.completions.create(
+    model="anthropic/claude-3.5-sonnet",
+    messages=[{"role": "user", "content": prompt}],
+    response_format={
         "type": "json_schema",
+        "json_schema": {
         "name": "trade_operation",
         "strict": True,
         "schema": {
@@ -35,7 +40,19 @@ def previsione_trading_agent(prompt):
                 "enum": [
                 "BTC",
                 "ETH",
-                "SOL"
+                "SOL",
+                "ARB",
+                "AVAX",
+                "MATIC",
+                "OP",
+                "DOGE",
+                "XRP",
+                "ADA",
+                "DOT",
+                "LINK",
+                "UNI",
+                "AAVE",
+                "LTC"
                 ]
             },
             "direction": {
@@ -64,35 +81,57 @@ def previsione_trading_agent(prompt):
                 "minimum": 1,
                 "maximum": 3
             },
-            "reason": {
+            "target_profit_usd": {
+                "type": "number",
+                "description": "Target profit in USD for scalping strategy (minimum 2.00 to cover fees)",
+                "minimum": 2.00
+            },
+            "max_hold_minutes": {
+                "type": "integer",
+                "description": "Maximum minutes to hold position before timeout (45-90 for 15min cycles)",
+                "minimum": 45,
+                "maximum": 90
+            },
+            "reasoning": {
                 "type": "string",
                 "description": "Brief explanation of the trading decision",
                 "minLength": 1,
-                "maxLength": 300
+                "maxLength": 500
             }
             },
             "required": [
             "operation",
             "symbol",
-            "direction",
-            "target_portion_of_balance",
-            "leverage",
-            "reason",
-            "stop_loss_percent"
+            "reasoning"
             ],
             "additionalProperties": False
         }
-        },
-        "verbosity": "medium"
-    },
-    reasoning={
-        "effort": "medium",
-        "summary": "auto"
-    },
-    tools=[],
-    store=True,
-    include=[
-        "reasoning.encrypted_content",
-        "web_search_call.action.sources"
-    ])
-    return(json.loads(response.output_text))
+        }
+    }
+    )
+    
+    # Parse AI response
+    raw_response = json.loads(response.choices[0].message.content)
+    
+    # Normalize response: handle "reason" vs "reasoning" inconsistency
+    normalized = {
+        "operation": raw_response.get("operation", "hold"),
+        "symbol": raw_response.get("symbol", "BTC"),
+        "reasoning": raw_response.get("reasoning") or raw_response.get("reason", "No reason provided")
+    }
+    
+    # Add optional fields if present
+    if "direction" in raw_response:
+        normalized["direction"] = raw_response["direction"]
+    if "target_portion_of_balance" in raw_response:
+        normalized["target_portion_of_balance"] = raw_response["target_portion_of_balance"]
+    if "leverage" in raw_response:
+        normalized["leverage"] = raw_response["leverage"]
+    if "stop_loss_percent" in raw_response:
+        normalized["stop_loss_percent"] = raw_response["stop_loss_percent"]
+    if "target_profit_usd" in raw_response:
+        normalized["target_profit_usd"] = raw_response["target_profit_usd"]
+    if "max_hold_minutes" in raw_response:
+        normalized["max_hold_minutes"] = raw_response["max_hold_minutes"]
+    
+    return normalized

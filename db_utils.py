@@ -190,6 +190,9 @@ MIGRATION_SQL = """
 ALTER TABLE bot_operations
     ADD COLUMN IF NOT EXISTS context_id BIGINT;
 
+ALTER TABLE bot_operations
+    ADD COLUMN IF NOT EXISTS stop_loss_percent NUMERIC(10, 4);
+
 ALTER TABLE indicators_contexts
     ADD COLUMN IF NOT EXISTS ticker TEXT,
     ADD COLUMN IF NOT EXISTS ts TIMESTAMPTZ,

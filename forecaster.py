@@ -117,7 +117,7 @@ def get_hyperliquid_forecasts(tickers=['BTC', 'ETH', 'SOL'], testnet=True):
 def get_crypto_forecasts(tickers=['BTC', 'ETH', 'SOL'], testnet=True):
     try:
         forecaster = HyperliquidForecaster(testnet=True)
-        results = forecaster.forecast_many(["BTC", "ETH", "SOL"])
+        results = forecaster.forecast_many(tickers)  # Use parameter, not hardcoded
         
         # Stampa il riepilogo come DataFrame
         df = pd.DataFrame(results)

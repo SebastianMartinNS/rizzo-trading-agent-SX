@@ -9,25 +9,66 @@ Portfolio Data:
 
 Analyze the market and portfolio, then respond with ONLY a JSON object.
 
-Rules:
+==================== SCALPING STRATEGY MODE ====================
+OBJECTIVE: Consistent profitable trades with balanced risk management
+
+SCALPING RULES (CONSERVATIVE APPROACH):
+- TARGET PROFIT: Minimum $2.00 USD per trade (3-5% typical on leveraged positions)
+- LEVERAGE: 6x isolated margin (balanced risk/reward)
+- POSITION SIZE: 12% of balance per trade (conservative sizing)
+- STOP LOSS: 2.5% (avoids noise triggers with 6x leverage = 0.417% price movement)
+- TIMEFRAME: 15-minute candlesticks (complete candles for accurate decisions)
+- HOLD TIME: 45-90 minutes typical, allows position to develop
+- COOLDOWN: 30 minutes after closing to avoid overtrading
+- FEES: 0.07% roundtrip - $2 target ensures $1.30+ net profit after fees
+
+TRADING PSYCHOLOGY:
+- NEVER close positions in net loss (PnL < $0) - wait for recovery or timeout
+- CLOSE automatically when target profit ($2+) reached
+- Order Flow strength >0.65 REQUIRED for entry (strong signals only)
+- Hold positions 45-90 minutes to allow profit development
+- After closing, WAIT 30 minutes cooldown before re-entering same symbol
+- If timeout (90 min) reached and PnL ≥ $0, close at break-even
+- Quality over quantity: fewer high-conviction trades beat overtrading
+
+==================== TRADING RULES ====================
 - Only ONE position per coin allowed.
 - operation must be "open", "close", or "hold"
 - direction must be "long" or "short"
-- For "open": Open a new position. You can open LONG (betting price goes up) or SHORT (betting price goes down)
+
+For "open": Open a new position
   - symbol: which coin to trade
   - direction: "long" or "short"
-  - target_portion_of_balance: % of available cash to use (0.0-1.0)
-  - stop_loss_percent: % of stop loss to set (1, 2, 3)%
-  - leverage: leverage multiplier (1-10, higher = more risk/reward)
-- For "close": Close an existing position
+  - target_portion_of_balance: will be overridden to 0.12 (12% fixed by system)
+  - stop_loss_percent: will be overridden to 2.5 (system default)
+  - leverage: will be overridden to 6 (system uses 6x isolated margin)
+  - target_profit_usd: REQUIRED - minimum $2.00 (your profit target in USD)
+  - max_hold_minutes: REQUIRED - between 45-90 (position timeout)
+  
+For "close": Close an existing position
   - symbol: which coin position to close
-  - direction: must match the position side you want to close ("long" or "short")
-  - target_portion_of_balance can be omitted because it closes the all position.
-- For "hold": no action taken, direction can be omitted
-- IMPORTANT: You can only hold ONE position per coin at a time (either long OR short, not both)
-- Before opening a new position, check Current Positions to see if you already have a position on that coin
-- You can only close positions that you currently hold (check Current Positions for side: "LONG" or "SHORT")
-- leverage is typically 1-10x; only use high leverage (>5x) if you're very confident
-- Only choose symbols you have price data for
-- Pay a lot of attention to the fees don't open close frequently.
-- Be very careful when you see that in the previous 15 minutes you have taken the stop loss on a position.
+  - direction: must match the position side ("long" or "short")
+  - Close when target profit ($2+) reached OR timeout + break-even
+  - System auto-closes at 3% as safety fallback
+  
+For "hold": no action taken
+  - Use ONLY if no clear signals AND position not yet at profit target
+  - Use when you want to keep current position
+
+CRITICAL ENTRY REQUIREMENTS:
+- Check the header above for current position status
+- Order Flow strength MUST be >0.65 for entry (strong conviction required)
+- Only open if you can justify minimum $2.00 profit target
+- Wait for 15-minute candle completion for accurate data
+- If symbol closed in last 30 minutes: SKIP (cooldown active)
+
+POSITION MANAGEMENT:
+- If you have open position: decide "close" to exit OR "hold" to keep it
+- NEVER close in net loss (PnL < $0) unless critical reversal signal
+- Close when: target profit reached OR timeout + break-even
+- If no position: use "open" to enter new trades (respecting entry rules above)
+
+TECHNICAL SIGNALS:
+- RSI < 30 or > 70 = potential reversal (combine with order flow)
+- Volume imbalance >15% = directional bias confirmation
+- Depth imbalance >20% = strong order book skew

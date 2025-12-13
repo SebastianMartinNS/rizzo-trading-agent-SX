@@ -63,29 +63,39 @@ class HyperLiquidTrader:
     #                            VALIDAZIONE INPUT
     # ----------------------------------------------------------------------
     def _validate_order_input(self, order_json: Dict[str, Any]):
-        required_fields = [
-            "operation",
-            "symbol",
-            "direction",
-            "target_portion_of_balance",
-            "leverage",
-            "reason",
-        ]
-
-        for f in required_fields:
+        operation = order_json.get("operation")
+        
+        # Campi sempre richiesti
+        required_always = ["operation", "symbol", "reasoning"]
+        for f in required_always:
             if f not in order_json:
                 raise ValueError(f"Missing required field: {f}")
-
-        if order_json["operation"] not in ("open", "close", "hold"):
+        
+        # Validazione operation
+        if operation not in ("open", "close", "hold"):
             raise ValueError("operation must be 'open', 'close', or 'hold'")
-
-        if order_json["direction"] not in ("long", "short"):
-            raise ValueError("direction must be 'long' or 'short'")
-
-        try:
-            float(order_json["target_portion_of_balance"])
-        except:
-            raise ValueError("target_portion_of_balance must be a number")
+        
+        # Campi richiesti solo per 'open'
+        if operation == "open":
+            required_open = ["direction", "target_portion_of_balance", "leverage"]
+            for f in required_open:
+                if f not in order_json:
+                    raise ValueError(f"Missing required field for open: {f}")
+            
+            if order_json["direction"] not in ("long", "short"):
+                raise ValueError("direction must be 'long' or 'short'")
+            
+            try:
+                float(order_json["target_portion_of_balance"])
+            except:
+                raise ValueError("target_portion_of_balance must be a number")
+        
+        # Campi richiesti per 'close'
+        if operation == "close":
+            if "direction" not in order_json:
+                raise ValueError("Missing required field for close: direction")
+            if order_json["direction"] not in ("long", "short"):
+                raise ValueError("direction must be 'long' or 'short'")
 
     # ----------------------------------------------------------------------
     #                           MIN SIZE / TICK SIZE
@@ -148,7 +158,7 @@ class HyperLiquidTrader:
     def set_leverage_for_symbol(self, symbol: str, leverage: int, is_cross: bool = True) -> Dict[str, Any]:
         """Imposta la leva per un simbolo specifico usando il metodo corretto"""
         try:
-            print(f"🔧 Impostando leva {leverage}x per {symbol} ({'cross' if is_cross else 'isolated'} margin)")
+            print(f"[LEVERAGE] Setting {leverage}x for {symbol} ({'cross' if is_cross else 'isolated'} margin)")
             
             # Usa il metodo update_leverage con i parametri corretti
             result = self.exchange.update_leverage(
@@ -158,14 +168,14 @@ class HyperLiquidTrader:
             )
             
             if result.get('status') == 'ok':
-                print(f"✅ Leva impostata con successo a {leverage}x per {symbol}")
+                print(f"[LEVERAGE] Successfully set to {leverage}x for {symbol}")
             else:
-                print(f"⚠️ Risposta dall'exchange: {result}")
+                print(f"[WARNING] Risposta dall'exchange: {result}")
                 
             return result
             
         except Exception as e:
-            print(f"❌ Errore impostando leva per {symbol}: {e}")
+            print(f"[ERROR] Errore impostando leva per {symbol}: {e}")
             return {"status": "error", "error": str(e)}
 
     # ----------------------------------------------------------------------
@@ -175,7 +185,7 @@ class HyperLiquidTrader:
         """
         Piazza un ordine Trigger Market (Stop Loss) con reduce_only=True.
         """
-        print(f"🛡️ Piazzando STOP LOSS per {symbol} a ${trigger_price} (Size: {size})")
+        print(f"[STOP-LOSS] Placing for {symbol} at ${trigger_price} (Size: {size})")
         
         # Struttura specifica per ordine Trigger su Hyperliquid
         order_type = {
@@ -197,13 +207,13 @@ class HyperLiquidTrader:
             )
 
             if result["status"] == "ok":
-                print(f"✅ Stop Loss piazzato: {result['response']['data']['statuses'][0]}")
+                print(f"[STOP-LOSS] Placed: {result['response']['data']['statuses'][0]}")
             else:
-                print(f"❌ Errore piazzamento Stop Loss: {result}")
+                print(f"[ERROR] Errore piazzamento Stop Loss: {result}")
             return result
             
         except Exception as e:
-            print(f"❌ Eccezione durante piazzamento SL: {e}")
+            print(f"[ERROR] Eccezione durante piazzamento SL: {e}")
             return {"status": "error", "error": str(e)}
 
     # ----------------------------------------------------------------------
@@ -238,10 +248,10 @@ class HyperLiquidTrader:
         sl_percent = float(stop_loss_percent)
         sl_price_explicit = order_json.get("stop_loss_price")
 
-        # 2. Impostazione Leva
-        leverage_result = self.set_leverage_for_symbol(symbol, leverage, is_cross=True)
+        # 2. Impostazione Leva (isolated margin per scalping)
+        leverage_result = self.set_leverage_for_symbol(symbol, leverage, is_cross=False)
         if leverage_result.get('status') != 'ok':
-            print(f"⚠️ Warning leva: {leverage_result}")
+            print(f"Warning leva: {leverage_result}")
         
         time.sleep(0.5) # Attesa propagazione
 
@@ -286,8 +296,8 @@ class HyperLiquidTrader:
         # 4. Esecuzione Ordine Market (ENTRY)
         print(
             f"\n[HyperLiquidTrader] Market {'BUY' if is_buy else 'SELL'} {size_float} {symbol}\n"
-            f"  💰 Prezzo Mark: ${mark_px}\n"
-            f"  🎯 Leva: {leverage}x\n"
+            f"  Mark Price: ${mark_px}\n"
+            f"  Leverage: {leverage}x\n"
         )
 
         res = self.exchange.market_open(
@@ -308,7 +318,7 @@ class HyperLiquidTrader:
             
             # B) Calcolo percentuale
             elif sl_percent > 0:
-                print(f"🧮 Calcolo SL automatico: {sl_percent*100}% da {mark_px}")
+                print(f"[SL CALC] Auto stop-loss: {sl_percent*100}% from {mark_px}")
                 if is_buy: # Se sono Long, SL è sotto
                     raw_price = mark_px * (1 - sl_percent)
                 else:      # Se sono Short, SL è sopra
@@ -388,6 +398,8 @@ class HyperLiquidTrader:
 
         return {
             "balance_usd": balance,
+            "accountValue": balance,  # Alias per compatibilità con bot
+            "withdrawable": float(data["marginSummary"].get("withdrawable", balance)),
             "open_positions": positions,
         }
     
